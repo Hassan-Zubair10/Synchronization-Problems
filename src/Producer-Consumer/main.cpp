@@ -9,25 +9,44 @@ constexpr auto items_to_process = 10;
 class BoundedBuffer
 {
     std::vector<int> buffer;
-    size_t front, rear, max_size;
+    size_t front, rear, current_size, max_size;
+    std::mutex mtx;
     std::condition_variable not_empty, not_full;
 public:
     BoundedBuffer(int size) : buffer(size), front(0), rear(0), max_size(size) {}
     
-    int size()     noexcept { return buffer.size();  }
-    int max_size() noexcept { return this->max_size; }
+    int get_size()     noexcept { return buffer.size();  }
+    int get_max_size() noexcept { return this->max_size; }
 
     void produce(int value) noexcept
     {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        /* If buffer is not full, produce, elsewise wait.*/
+        not_full.wait(lock, [this]{ return current_size < max_size; });
+
         buffer[rear] = value;
         rear = (rear + 1) % max_size;
-        ++rear = 1; 
+        current_size += 1;
+
+        lock.unlock();
+        not_empty.notify_one();        
     }
 
     int consume() noexcept
     {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        /*If buffer is not empty, wait, elsewise consume.*/
+        not_empty.wait(lock, [this]{ return current_size > 0; });
+
         int value = buffer[front];
-        front = (front - 1) % max_size;
+        front = (front + 1) % max_size;
+        current_size -= 1;
+
+        lock.unlock();
+        not_full.notify_one();
+        
         return value;
     }
 };
@@ -37,8 +56,9 @@ void producer(BoundedBuffer& buffer) noexcept
     for (size_t i = 0; i < items_to_process; i++)
     {
         int value = rand() % 100;
-        buffer.produce(value);
         std::cout << "Produced: " << value << std::endl;
+        buffer.produce(value);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }    
 }
 
@@ -48,6 +68,7 @@ void consumer(BoundedBuffer& buffer) noexcept
     {
         int value = buffer.consume();
         std::cout << "Consumed: " << value << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     
 }

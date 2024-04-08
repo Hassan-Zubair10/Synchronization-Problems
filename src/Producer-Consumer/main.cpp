@@ -13,7 +13,7 @@ class BoundedBuffer
     std::mutex mtx;
     std::condition_variable not_empty, not_full;
 public:
-    BoundedBuffer(int size) : buffer(size), front(0), rear(0), max_size(size), current_size(0) {}
+    BoundedBuffer(int size) : buffer(size), front(0), rear(0), current_size(0), max_size(size) {}
 
     void produce(int value) noexcept
     {

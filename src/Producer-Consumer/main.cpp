@@ -13,10 +13,7 @@ class BoundedBuffer
     std::mutex mtx;
     std::condition_variable not_empty, not_full;
 public:
-    BoundedBuffer(int size) : buffer(size), front(0), rear(0), max_size(size) {}
-    
-    int get_size()     noexcept { return buffer.size();  }
-    int get_max_size() noexcept { return this->max_size; }
+    BoundedBuffer(int size) : buffer(size), front(0), rear(0), max_size(size), current_size(0) {}
 
     void produce(int value) noexcept
     {
@@ -55,9 +52,8 @@ void producer(BoundedBuffer& buffer) noexcept
 {
     for (size_t i = 0; i < items_to_process; i++)
     {
-        int value = rand() % 100;
-        std::cout << "Produced: " << value << std::endl;
-        buffer.produce(value);
+        std::cout << "Produced: " << i << std::endl;
+        buffer.produce(i);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }    
 }
